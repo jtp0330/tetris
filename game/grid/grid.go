@@ -7,7 +7,7 @@ var ROWS = 21
 var COLS = 10
 var ROW_END = 1
 
-func CreateGrid() {
+func CreateGrid() [][]string {
 	grid := make([][]string, ROWS)
 	for i := 0; i < ROWS; i++ {
 		grid[i] = make([]string, COLS)
@@ -33,4 +33,5 @@ func CreateGrid() {
 	grid[ROWS-1] = end
 
 	fmt.Println(grid)
+	return grid
 }
