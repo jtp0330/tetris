@@ -9,7 +9,7 @@ import (
 )
 
 // global vars
-var game_grid = [][]int{}
+var game_grid = [][]string{}
 var ROWS = 21
 var COLS = 10
 var ROW_END = 1
@@ -46,7 +46,8 @@ func SpawnBlock(shapes []block.Block) block.Block {
 	for _, coord := range block_to_be_dropped {
 		coord_x := coord[0]
 		coord_y := coord[1]
-		game_grid[coord_x+SPAWN][coord_y+SPAWN] = block_to_be_dropped[coord_x][coord_y]
+		game_grid[coord_x+SPAWN][coord_y+SPAWN] = "[]"
+
 	}
 	return block_to_be_dropped
 }
@@ -78,7 +79,7 @@ func IsRowFull() bool {
 	isFull := false
 	for _, rows := range game_grid {
 		for j := 0; j < COLS; j++ {
-			if rows[j] != 0 {
+			if rows[j] != "[]" {
 				isFull = true
 			}
 		}
@@ -91,15 +92,24 @@ func GameOver() bool {
 	//if game is over, update score and exit game loop
 	//check top row, and if any of the columns are occupied, and not a full row, game over
 	for i := 0; i < COLS; i++ {
-		if game_grid[0][i] != 0 && !IsRowFull() {
+		if game_grid[0][i] != "." && !IsRowFull() {
 			game_over = true
 		}
 	}
 	return game_over
 }
 
+func RemoveRow(grid [][]string, user User) {
+	//remove row
+	//move everything down
+	//update score
+	user.score += 10
+}
+
 // game logic
 func startGameLoop() {
+	//create user
+
 	fmt.Println("Welcome to Tetris!")
 	fmt.Println("Please Enter a username before starting the game:")
 
@@ -108,10 +118,10 @@ func startGameLoop() {
 	//create user
 	user := User{1, username, 0}
 	fmt.Println("Game starting for user...: ", user.userName)
-	time.Sleep(15)
+	time.Sleep(5)
 
 	//create grid
-	grid.CreateGrid()
+	game_grid = grid.CreateGrid()
 	playing_game = true
 
 	//game loop
@@ -128,11 +138,16 @@ func startGameLoop() {
 				//remove full row
 				//move everything down
 				//update score
-				user.score += 10
+				RemoveRow(game_grid, user)
 			}
 		}
 	}
 	//game over message
 	fmt.Println("Game over!")
 	fmt.Println("Your Final score is: ", user.score)
+}
+
+func CreateGame() {
+	LoadBlocks()
+	startGameLoop()
 }
