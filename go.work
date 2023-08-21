@@ -4,5 +4,5 @@ use (
 	.
 	./game
 	./game/grid
-	./game/grid/block
+	./game/block
 )

@@ -4,8 +4,12 @@ import (
 	"block"
 	"fmt"
 	"grid"
+	"log"
 	"math/rand"
 	"time"
+
+	"github.com/hajimehoshi/ebiten/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // global vars
@@ -27,6 +31,59 @@ type User struct {
 	score    int
 }
 
+type Game struct{}
+
+// create initial grid
+func CreateGrid() [][]string {
+	grid := make([][]string, ROWS)
+	for i := 0; i < ROWS; i++ {
+		grid[i] = make([]string, COLS)
+		for j := 0; j < COLS; j++ {
+			//draw border
+			if j < ROW_END {
+				//first element
+				grid[i][j] = "<!"
+			} else if j >= COLS-ROW_END {
+				//last element
+				grid[i][j] = "!>"
+			} else {
+				//draw empty space
+				grid[i][j] = " ."
+			}
+		}
+	}
+	//draw bottom border
+	end := make([]string, COLS)
+	for i := 0; i < COLS; i++ {
+		end[i] = "<>"
+	}
+	grid[ROWS-1] = end
+
+	fmt.Println(grid)
+	return grid
+}
+
+func (g *Game) Update() error {
+	return nil
+}
+
+// draw current grid at each frame
+func (g *Game) Draw(grid [][]string, screen *ebiten.Image) {
+	//draw grid
+	for i := 0; i < ROWS; i++ {
+		for j := 0; j < COLS; j++ {
+			//draw grid
+			ebitenutil.DebugPrint(screen, grid[i][j])
+		}
+		fmt.Println()
+	}
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+	return 320, 240
+}
+
+// load blocks
 func LoadBlocks() {
 	//load shapes defined in block.go
 	shapes = append(shapes, block.IBlock)
@@ -99,8 +156,9 @@ func GameOver() bool {
 	return game_over
 }
 
-func RemoveRow(grid [][]string, user User) {
+func RemoveRow(grid [][]string, user *User) {
 	//remove row
+
 	//move everything down
 	//update score
 	user.score += 10
@@ -122,12 +180,13 @@ func startGameLoop() {
 
 	//create grid
 	game_grid = grid.CreateGrid()
+
+	//start first block drop
+	currShape := SpawnBlock(shapes)
 	playing_game = true
 
 	//game loop
 	for playing_game {
-		//spawn block
-		currShape := SpawnBlock(shapes)
 		//move block down
 		MoveShape(currShape)
 		//check for collision
@@ -138,7 +197,10 @@ func startGameLoop() {
 				//remove full row
 				//move everything down
 				//update score
-				RemoveRow(game_grid, user)
+				RemoveRow(game_grid, &user)
+			} else {
+				//spawn new block
+				currShape = SpawnBlock(shapes)
 			}
 		}
 	}
@@ -147,7 +209,14 @@ func startGameLoop() {
 	fmt.Println("Your Final score is: ", user.score)
 }
 
+// start game
 func CreateGame() {
 	LoadBlocks()
+	ebiten.SetWindowSize(640, 480)
+	ebiten.SetWindowTitle("Tetris")
+	if err := ebiten.RunGame(&Game{}); err != nil {
+		log.Fatal(err)
+	}
+
 	startGameLoop()
 }
