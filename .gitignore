@@ -1,1 +1,4 @@
 game/grid/grid.go
+game/grid/go.mod
+game/grid/go.sum
+
