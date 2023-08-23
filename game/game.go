@@ -3,13 +3,12 @@ package game
 import (
 	"block"
 	"fmt"
-	"grid"
 	"log"
 	"math/rand"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 // global vars
@@ -20,6 +19,8 @@ var ROW_END = 1
 var shapes = []block.Block{}
 var game_over = false
 var playing_game = false
+var windowWidth = 640
+var windowHeight = 480
 
 // block spawn point
 var SPAWN = COLS / 2
@@ -32,6 +33,27 @@ type User struct {
 }
 
 type Game struct{}
+
+func (g *Game) Update() error {
+	return nil
+}
+
+// draw current grid at each frame
+func (g *Game) Draw(screen *ebiten.Image) {
+
+	//draw grid
+	for i := 0; i < ROWS; i++ {
+		for j := 0; j < COLS; j++ {
+			//draw grid
+			ebitenutil.DebugPrintAt(screen, game_grid[i][j], i, j)
+		}
+		fmt.Println()
+	}
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+	return 320, 240
+}
 
 // create initial grid
 func CreateGrid() [][]string {
@@ -61,26 +83,6 @@ func CreateGrid() [][]string {
 
 	fmt.Println(grid)
 	return grid
-}
-
-func (g *Game) Update() error {
-	return nil
-}
-
-// draw current grid at each frame
-func (g *Game) Draw(grid [][]string, screen *ebiten.Image) {
-	//draw grid
-	for i := 0; i < ROWS; i++ {
-		for j := 0; j < COLS; j++ {
-			//draw grid
-			ebitenutil.DebugPrint(screen, grid[i][j])
-		}
-		fmt.Println()
-	}
-}
-
-func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 320, 240
 }
 
 // load blocks
@@ -129,19 +131,20 @@ func Collision(currentShape block.Block) bool {
 	return false
 }
 
-func IsRowFull() bool {
+func IsRowFull() int {
 	//check if there are any full rows
 	//if there are, remove them and move everything down
 	//update score
-	isFull := false
-	for _, rows := range game_grid {
+	row_index := 0
+	for i, row := range game_grid {
 		for j := 0; j < COLS; j++ {
-			if rows[j] != "[]" {
-				isFull = true
+			if row[j] != "[]" {
+				row_index = i
+				break
 			}
 		}
 	}
-	return isFull
+	return row_index
 }
 
 func GameOver() bool {
@@ -149,17 +152,18 @@ func GameOver() bool {
 	//if game is over, update score and exit game loop
 	//check top row, and if any of the columns are occupied, and not a full row, game over
 	for i := 0; i < COLS; i++ {
-		if game_grid[0][i] != "." && !IsRowFull() {
+		if game_grid[0][i] != "." && IsRowFull() == 0 {
 			game_over = true
 		}
 	}
 	return game_over
 }
 
-func RemoveRow(grid [][]string, user *User) {
-	//remove row
-
-	//move everything down
+func RemoveRow(grid [][]string, user *User, row_index int) {
+	//remove row by moving everything less than row_index down
+	for i := 0; i < row_index; i++ {
+		grid[i] = grid[i+1]
+	}
 	//update score
 	user.score += 10
 }
@@ -179,8 +183,8 @@ func startGameLoop() {
 	time.Sleep(5)
 
 	//create grid
-	game_grid = grid.CreateGrid()
-
+	game_grid = CreateGrid()
+	LoadBlocks()
 	//start first block drop
 	currShape := SpawnBlock(shapes)
 	playing_game = true
@@ -193,11 +197,10 @@ func startGameLoop() {
 		if Collision(currShape) {
 			if GameOver() {
 				break
-			} else if IsRowFull() {
-				//remove full row
-				//move everything down
-				//update score
-				RemoveRow(game_grid, &user)
+			} else if IsRowFull() != 0 {
+				//remove row and update score
+				remove_row_index := IsRowFull()
+				RemoveRow(game_grid, &user, remove_row_index)
 			} else {
 				//spawn new block
 				currShape = SpawnBlock(shapes)
@@ -211,8 +214,7 @@ func startGameLoop() {
 
 // start game
 func CreateGame() {
-	LoadBlocks()
-	ebiten.SetWindowSize(640, 480)
+	ebiten.SetWindowSize(windowWidth, windowHeight)
 	ebiten.SetWindowTitle("Tetris")
 	if err := ebiten.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
