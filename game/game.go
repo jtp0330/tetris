@@ -119,12 +119,14 @@ func MoveShape(shape block.Block) {
 	}
 }
 
+// modify function so that it accounts for checking rows only below it for collision
+// if next coordinates down hit a '[]', then collision is true
 // returns true if shape hits bottom or occupied space
 func Collision(currentShape block.Block) bool {
 	//check if shape hits bottom or occupied space
 	for _, coord := range currentShape {
 		//check if shape hits bottom or occupied space
-		if coord[0] == 1 || coord[1] == 1 || coord[0] == ROWS-1 || coord[1] == COLS-1 {
+		if game_grid[coord[0]][coord[1]+1] == "[]" || coord[1] == COLS-1 {
 			return true
 		}
 	}
@@ -219,6 +221,6 @@ func CreateGame() {
 	if err := ebiten.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
 	}
-
+	//start game
 	startGameLoop()
 }

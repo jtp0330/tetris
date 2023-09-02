@@ -1,4 +1,4 @@
-// package grid
+package grid
 
 // //package redudant as same as game.go
 // import (
