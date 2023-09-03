@@ -3,12 +3,13 @@ package game
 import (
 	"block"
 	"fmt"
+	"image/color"
 	"log"
 	"math/rand"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text"
 )
 
 // global vars
@@ -31,8 +32,10 @@ type User struct {
 	userName string
 	score    int
 }
-
-type Game struct{}
+type Game struct {
+	user     *User
+	gameOver bool
+}
 
 func (g *Game) Update() error {
 	return nil
@@ -40,15 +43,26 @@ func (g *Game) Update() error {
 
 // draw current grid at each frame
 func (g *Game) Draw(screen *ebiten.Image) {
+	//draw background
+	screen.Fill(color.Black)
 
-	//draw grid
-	for i := 0; i < ROWS; i++ {
-		for j := 0; j < COLS; j++ {
-			//draw grid
-			ebitenutil.DebugPrintAt(screen, game_grid[i][j], i, j)
-		}
-		fmt.Println()
+	//draw score
+	currScore := fmt.Sprintf("Score: %d", g.user.score)
+	text.Draw(screen, currScore, nil, 10, 10, color.White)
+
+	if g.gameOver {
+		screen.Fill(color.Black)
+		text.Draw(screen, "Game Over!", nil, 10, 10, color.White)
+		text.Draw(screen, "{g.user.userName} score is {currScore}", nil, 10, 30, color.White)
 	}
+	// //draw grid
+	// for i := 0; i < ROWS; i++ {
+	// 	for j := 0; j < COLS; j++ {
+	// 		//draw grid
+	// 		text.Draw(screen, game_grid[i][j], nil, (windowWidth+i)/4, (windowHeight+j)/4)
+	// 	}
+	// 	fmt.Println()
+	// }
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -111,9 +125,10 @@ func SpawnBlock(shapes []block.Block) block.Block {
 	return block_to_be_dropped
 }
 
-func MoveShape(shape block.Block) {
-	//move shape down until hits bottom or occupied space
-	//set coordinates of shape to occupied space when top condition is met
+// move shape down until hits bottom or occupied space
+// set coordinates of shape to occupied space when top condition is met
+func DropShape(shape block.Block) {
+
 	for _, coord := range shape {
 		coord[0], coord[1] = coord[0]+1, coord[1]+1 //move down
 	}
@@ -171,16 +186,18 @@ func RemoveRow(grid [][]string, user *User, row_index int) {
 }
 
 // game logic
-func startGameLoop() {
-	//create user
+func startGameLoop(g *Game) error {
 
 	fmt.Println("Welcome to Tetris!")
 	fmt.Println("Please Enter a username before starting the game:")
 
+	//create user and initalize game struct
 	var username string
 	fmt.Scan(&username)
-	//create user
 	user := User{1, username, 0}
+	g.user = &user
+	g.gameOver = false
+
 	fmt.Println("Game starting for user...: ", user.userName)
 	time.Sleep(5)
 
@@ -194,10 +211,11 @@ func startGameLoop() {
 	//game loop
 	for playing_game {
 		//move block down
-		MoveShape(currShape)
+		DropShape(currShape)
 		//check for collision
 		if Collision(currShape) {
 			if GameOver() {
+				g.gameOver = true
 				break
 			} else if IsRowFull() != 0 {
 				//remove row and update score
@@ -215,12 +233,12 @@ func startGameLoop() {
 }
 
 // start game
-func CreateGame() {
+func CreateGame(game *Game) {
 	ebiten.SetWindowSize(windowWidth, windowHeight)
 	ebiten.SetWindowTitle("Tetris")
-	if err := ebiten.RunGame(&Game{}); err != nil {
+	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
 	//start game
-	startGameLoop()
+	startGameLoop(game)
 }
