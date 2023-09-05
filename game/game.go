@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"image/color"
 	"log"
-	"math/rand"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/text"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
 )
 
 // global vars
@@ -24,7 +26,8 @@ var windowHeight = 480
 var block_on_grid = false
 
 // block spawn point
-var SPAWN = COLS / 2
+var SPAWN_X = ROWS / 2
+var SPAWN_Y = COLS / 2
 
 // Player object
 type User struct {
@@ -44,7 +47,6 @@ func (g *Game) Update() error {
 
 	//game loop
 	//start first block drop
-
 	if !block_on_grid {
 		//spawn new block
 		block_on_grid = true
@@ -89,20 +91,44 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	//draw background
 	screen.Fill(color.Black)
+	//create font
+	tt, err := opentype.Parse(fonts.MPlus1pRegular_ttf)
 
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	const dpi = 72
+	//set font
+	screen_font, err := opentype.NewFace(tt, &opentype.FaceOptions{
+		Size:    12,
+		DPI:     dpi,
+		Hinting: font.HintingVertical,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//render grid
+	for i := 0; i < ROWS; i++ {
+		for j := 0; j < COLS; j++ {
+			text.Draw(screen, game_grid[i][j], screen_font, j+20, i+20, color.White)
+		}
+	}
+	g.currShape = SpawnBlock(shapes)
+	//draw current shape
+	for _, coord := range g.currShape {
+		text.Draw(screen, game_grid[coord[0]][coord[1]], screen_font, coord[0]+20, coord[1]+20, color.White)
+	}
 	//draw score
 	currScore := fmt.Sprintf("Score: %d", g.user.score)
-	text.Draw(screen, currScore, nil, 10, 10, color.White)
+	text.Draw(screen, currScore, screen_font, windowWidth-10, windowHeight-10, color.White)
 
 	if g.gameOver {
 		screen.Fill(color.Black)
-		text.Draw(screen, "Game Over!", nil, 10, 10, color.White)
-		text.Draw(screen, "{g.user.userName} score is {currScore}", nil, 10, 30, color.White)
+		text.Draw(screen, "Game Over!", screen_font, windowWidth/2, windowHeight/2, color.White)
+		text.Draw(screen, "{g.user.userName} score is {currScore}", screen_font, windowWidth/2, windowHeight/2, color.White)
 	}
-
-	//start game
-	startGameLoop(g)
-
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -112,6 +138,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 // create initial grid
 func CreateGrid() [][]string {
 	grid := make([][]string, ROWS)
+	//panic invalid pointer here
 	for i := 0; i < ROWS; i++ {
 		grid[i] = make([]string, COLS)
 		for j := 0; j < COLS; j++ {
@@ -133,9 +160,8 @@ func CreateGrid() [][]string {
 	for i := 0; i < COLS; i++ {
 		end[i] = "<>"
 	}
-	grid[ROWS-1] = end
-
-	fmt.Println(grid)
+	print(grid)
+	grid = append(grid, end)
 	return grid
 }
 
@@ -152,16 +178,17 @@ func LoadBlocks() {
 func SpawnBlock(shapes []block.Block) block.Block {
 	//block shift left with an XOR operation
 	//block shift down with an AND operation
-	block_index := rand.New(rand.NewSource(4)).Int()
+	block_index := 0
 	block_to_be_dropped := shapes[block_index]
-	//by def, using range on an array returns the index and the value,
-	//we only care about value, thus ignore index with _
-	for _, coord := range block_to_be_dropped {
-		coord_x := coord[0]
-		coord_y := coord[1]
-		game_grid[coord_x+SPAWN][coord_y+SPAWN] = "[]"
+	// fmt.Println(block_to_be_dropped)
+	// //by def, using range on an array returns the index and the value,
+	// //we only care about value, thus ignore index with _
+	// for _, coord := range block_to_be_dropped {
+	// 	coord_x := coord[0]
+	// 	coord_y := coord[1]
+	// 	game_grid[coord_x][coord_y] = "[]"
 
-	}
+	// }
 	return block_to_be_dropped
 }
 
@@ -240,11 +267,9 @@ func startGameLoop(g *Game) {
 
 	fmt.Println("Game starting for user...: ", user.userName)
 	time.Sleep(20)
-
-	//create grid
-	game_grid = CreateGrid()
+	//genearte blocks and grid
 	LoadBlocks()
-
+	game_grid = CreateGrid()
 	// //game loop
 	// for playing_game {
 	// 	//move block down
@@ -269,6 +294,7 @@ func startGameLoop(g *Game) {
 func CreateGame(game *Game) {
 	ebiten.SetWindowSize(windowWidth, windowHeight)
 	ebiten.SetWindowTitle("Tetris")
+	startGameLoop(game)
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
