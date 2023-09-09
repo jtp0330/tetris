@@ -8,10 +8,8 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/text"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/font/basicfont"
 )
 
 // global vars
@@ -19,10 +17,10 @@ var game_grid = [][]string{}
 var ROWS = 21
 var COLS = 10
 var ROW_END = 1
-var shapes = []block.Block{}
+var shapes = []block.Shape{}
 var game_over = false
-var windowWidth = 640
-var windowHeight = 480
+var windowWidth = 320
+var windowHeight = 240
 var block_on_grid = false
 
 // block spawn point
@@ -38,7 +36,7 @@ type User struct {
 type Game struct {
 	user      *User
 	gameOver  bool
-	currShape block.Block
+	currShape block.Shape
 }
 
 // updates game state every frame
@@ -50,24 +48,28 @@ func (g *Game) Update() error {
 	if !block_on_grid {
 		//spawn new block
 		block_on_grid = true
-		g.currShape = SpawnBlock(shapes)
+		g.currShape = SpawnShape(shapes)
 	}
 	//user input
 	//TBD -> add quick down feature
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		fmt.Println("Move left")
 		for _, coord := range g.currShape {
-			coord[0] = coord[0] - 1 //move left
+			currCoord := *coord
+			currCoord[0] = currCoord[0] - 1 //move left
 		}
 	} else if ebiten.IsKeyPressed(ebiten.KeyRight) {
+		fmt.Println("Move right")
 		for _, coord := range g.currShape {
-			coord[0] = coord[0] + 1 //move right
+			currCoord := *coord
+			currCoord[0] = currCoord[0] + 1 //move right
 		}
 	} else if ebiten.IsKeyPressed(ebiten.KeySpace) {
 		block.Rotate(g.currShape)
 	}
 
 	//move block down
-	DropShape(g.currShape)
+	g.currShape.MoveDown(1.0)
 
 	//check for collision
 	if Collision(g.currShape) {
@@ -80,7 +82,7 @@ func (g *Game) Update() error {
 			RemoveRow(game_grid, g.user, remove_row_index)
 		} else {
 			//spawn new block
-			g.currShape = SpawnBlock(shapes)
+			g.currShape = SpawnShape(shapes)
 		}
 	}
 
@@ -92,47 +94,32 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	//draw background
 	screen.Fill(color.Black)
 	//create font
-	tt, err := opentype.Parse(fonts.MPlus1pRegular_ttf)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	const dpi = 72
-	//set font
-	screen_font, err := opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    12,
-		DPI:     dpi,
-		Hinting: font.HintingVertical,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	new_font := basicfont.Face7x13
 
 	//render grid
 	for i := 0; i < ROWS; i++ {
 		for j := 0; j < COLS; j++ {
-			text.Draw(screen, game_grid[i][j], screen_font, j+20, i+20, color.White)
+			text.Draw(screen, game_grid[i][j], new_font, windowWidth/2+i, windowHeight/2+j, color.RGBA{255, 255, 255, 255})
 		}
 	}
-	g.currShape = SpawnBlock(shapes)
 	//draw current shape
 	for _, coord := range g.currShape {
-		text.Draw(screen, game_grid[coord[0]][coord[1]], screen_font, coord[0]+20, coord[1]+20, color.White)
+		currCoord := *coord
+		text.Draw(screen, "[]", new_font, SPAWN_X+100, SPAWN_Y+currCoord[1]+100, color.RGBA{0xff, 0x00, 0x00, 0x00})
 	}
 	//draw score
 	currScore := fmt.Sprintf("Score: %d", g.user.score)
-	text.Draw(screen, currScore, screen_font, windowWidth-10, windowHeight-10, color.White)
+	text.Draw(screen, currScore, new_font, 5, windowHeight-10, color.White)
 
 	if g.gameOver {
 		screen.Fill(color.Black)
-		text.Draw(screen, "Game Over!", screen_font, windowWidth/2, windowHeight/2, color.White)
-		text.Draw(screen, "{g.user.userName} score is {currScore}", screen_font, windowWidth/2, windowHeight/2, color.White)
+		text.Draw(screen, "Game Over!", new_font, windowWidth/2, windowHeight/2, color.White)
+		text.Draw(screen, "{g.user.userName} score is {currScore}", new_font, windowWidth/2, windowHeight/2, color.White)
 	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 320, 240
+	return windowWidth, windowHeight
 }
 
 // create initial grid
@@ -165,50 +152,44 @@ func CreateGrid() [][]string {
 	return grid
 }
 
-// load blocks
-func LoadBlocks() {
+// creates and load shapes from block.go
+func LoadShapes(img *ebiten.Image, geoM *ebiten.GeoM) {
+
+	var IShape = block.Shape{block.CreateBlock(img, geoM, 0, 1), block.CreateBlock(img, geoM, 0, 2), block.CreateBlock(img, geoM, 0, 3), block.CreateBlock(img, geoM, 0, 4)} //I block
+	var TShape = block.Shape{block.CreateBlock(img, geoM, 0, 0), block.CreateBlock(img, geoM, 1, 0), block.CreateBlock(img, geoM, 1, 1), block.CreateBlock(img, geoM, 2, 0)} //T block
+	var BShape = block.Shape{block.CreateBlock(img, geoM, 0, 0), block.CreateBlock(img, geoM, 1, 0), block.CreateBlock(img, geoM, 0, 1), block.CreateBlock(img, geoM, 1, 1)} //Square block
+	var SShape = block.Shape{block.CreateBlock(img, geoM, 0, 0), block.CreateBlock(img, geoM, 1, 0), block.CreateBlock(img, geoM, 1, 1), block.CreateBlock(img, geoM, 2, 1)} //S block
+
 	//load shapes defined in block.go
-	shapes = append(shapes, block.IBlock)
-	shapes = append(shapes, block.BBlock)
-	shapes = append(shapes, block.SBlock)
-	shapes = append(shapes, block.TBlock)
+	shapes = append(shapes, IShape)
+	shapes = append(shapes, BShape)
+	shapes = append(shapes, SShape)
+	shapes = append(shapes, TShape)
 }
 
 // create block randomly in 4 different ways:
-func SpawnBlock(shapes []block.Block) block.Block {
+func SpawnShape(shapes []block.Block) *ebiten.Image {
 	//block shift left with an XOR operation
 	//block shift down with an AND operation
 	block_index := 0
 	block_to_be_dropped := shapes[block_index]
-	// fmt.Println(block_to_be_dropped)
-	// //by def, using range on an array returns the index and the value,
-	// //we only care about value, thus ignore index with _
-	// for _, coord := range block_to_be_dropped {
-	// 	coord_x := coord[0]
-	// 	coord_y := coord[1]
-	// 	game_grid[coord_x][coord_y] = "[]"
-
-	// }
-	return block_to_be_dropped
-}
-
-// move shape down until hits bottom or occupied space
-// set coordinates of shape to occupied space when top condition is met
-func DropShape(shape block.Block) {
-
-	for _, coord := range shape {
-		coord[0], coord[1] = coord[0]+1, coord[1]+1 //move down
+	for _, coord := range block_to_be_dropped {
+		currCoord := *coord
+		blockImage := ebiten.NewImage(currCoord[0], currCoord[1])
 	}
+	return blockImage
 }
 
 // modify function so that it accounts for checking rows only below it for collision
 // if next coordinates down hit a '[]', then collision is true
 // returns true if shape hits bottom or occupied space
-func Collision(currentShape block.Block) bool {
+func Collision(currentShape block.Shape) bool {
 	//check if shape hits bottom or occupied space
+
 	for _, coord := range currentShape {
 		//check if shape hits bottom or occupied space
-		if game_grid[coord[0]][coord[1]+1] == "[]" || coord[1] == COLS-1 {
+		currCoord := *coord
+		if game_grid[currCoord[0]][currCoord[1]+1] == "[]" || currCoord[1] == COLS-1 {
 			return true
 		}
 	}
@@ -268,31 +249,13 @@ func startGameLoop(g *Game) {
 	fmt.Println("Game starting for user...: ", user.userName)
 	time.Sleep(20)
 	//genearte blocks and grid
-	LoadBlocks()
+	LoadShapes()
 	game_grid = CreateGrid()
-	// //game loop
-	// for playing_game {
-	// 	//move block down
-	// 	DropShape(currShape)
-	// 	//check for collision
-	// 	if Collision(currShape) {
-	// 		if GameOver() {
-	// 			g.gameOver = true
-	// 			break
-	// 		} else if IsRowFull() != 0 {
-	// 			//remove row and update score
-	// 			remove_row_index := IsRowFull()
-	// 			RemoveRow(game_grid, &user, remove_row_index)
-	// 		} else {
-	// 			//spawn new block
-	// 			currShape = SpawnBlock(shapes)
-	// 		}
-	// 	}
 }
 
 // start game
 func CreateGame(game *Game) {
-	ebiten.SetWindowSize(windowWidth, windowHeight)
+	ebiten.SetWindowSize(windowWidth*2, windowHeight*2)
 	ebiten.SetWindowTitle("Tetris")
 	startGameLoop(game)
 	if err := ebiten.RunGame(game); err != nil {

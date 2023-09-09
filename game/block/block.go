@@ -1,38 +1,57 @@
 package block
 
-type Coordinates [2]int
-type Block [4]Coordinates
+import (
+	"fmt"
+	"image/color"
 
-// block patterns
-var IBlock = Block{{0, 1}, {0, 2}, {0, 3}, {0, 4}} //I block
-var TBlock = Block{{1, 0}, {1, 1}, {2, 0}, {0, 1}} //T block
-var BBlock = Block{{0, 0}, {1, 0}, {0, 1}, {1, 1}} //Square block
-var SBlock = Block{{0, 0}, {1, 0}, {1, 1}, {2, 1}} //S block
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text"
+	"golang.org/x/image/font/basicfont"
+)
+
+type Block struct {
+	point [2]int
+	img   *ebiten.Image
+	geoM  *ebiten.GeoM
+}
+
+type Shape [4]*Block
+
+func CreateBlock(img *ebiten.Image, geoM *ebiten.GeoM, tx int, ty int) *Block {
+	//create block image
+	blockImage := Block{[2]int{tx, ty}, img, geoM}
+	return &blockImage
+}
 
 // create block randomly in 4 different ways:
-func Rotate(block Block) (rotated_block Block) {
+func Rotate(shape Shape) (rotated_shape Shape) {
 	//block shift left with an XOR operation
 	//block shift right with an OR operation
 	//block shift down with an AND operation
 	//block shift up with an AND NOT operation
-	for coord := range block {
-		//block[i] = block[i] << 1
-		coord ^= 1
+	for _, block := range shape {
+		block.point[0], block.point[1] = block.point[0]^1, block.point[1]^1
 	}
 
 	return
 }
 
-// create block randomly in 4 different ways:
-func Quick_Down(grid [][]string, block [4]Coordinates) (rotated_block [4]Coordinates) {
+func Quick_Down(grid [][]string, block [4]Block) {
 	//block shift left with an XOR operation
 	//block shift down with an AND operation
-	for i := 0; i < len(block); i++ {
-		//block[i] = block[i] << 1
-		for j := 0; j < len(block); j++ {
-			block[i][j] = block[i][j] ^ 1
-		}
-	}
+	fmt.Println("TBD")
+}
 
-	return
+func (shape Shape) Draw(screen *ebiten.Image) {
+	//draw each coordinate of the tetromino
+	new_font := basicfont.Face7x13
+	for _, block := range shape {
+		text.Draw(screen, "[]", new_font, block.point[0], block.point[1], color.RGBA{0xff, 0x00, 0x00, 0x00})
+	}
+}
+
+func (shape Shape) MoveDown(y float64) {
+	for _, block := range shape {
+		block.geoM.Translate(0, y)
+	}
 }
