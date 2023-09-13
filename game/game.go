@@ -1,10 +1,10 @@
 package game
 
 import (
-	"block"
 	"fmt"
 	"image/color"
 	"log"
+	"shape"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -12,20 +12,23 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
+const (
+	ROWS         = 21
+	COLS         = 10
+	ROW_END      = 1
+	windowWidth  = 320
+	windowHeight = 240
+
+	// block spawn point
+	SPAWN_X = ROWS / 2
+	SPAWN_Y = COLS / 2
+)
+
 // global vars
 var game_grid = [][]string{}
-var ROWS = 21
-var COLS = 10
-var ROW_END = 1
-var shapes = []block.Shape{}
-var game_over = false
-var windowWidth = 320
-var windowHeight = 240
+var shapes = []shape.Shape{}
 var block_on_grid = false
-
-// block spawn point
-var SPAWN_X = ROWS / 2
-var SPAWN_Y = COLS / 2
+var game_over = false
 
 // Player object
 type User struct {
@@ -36,7 +39,7 @@ type User struct {
 type Game struct {
 	user      *User
 	gameOver  bool
-	currShape block.Shape
+	currShape *shape.Shape
 }
 
 // updates game state every frame
@@ -54,25 +57,19 @@ func (g *Game) Update() error {
 	//TBD -> add quick down feature
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		fmt.Println("Move left")
-		for _, coord := range g.currShape {
-			currCoord := *coord
-			currCoord[0] = currCoord[0] - 1 //move left
-		}
+		g.currShape.MoveLeft()
 	} else if ebiten.IsKeyPressed(ebiten.KeyRight) {
 		fmt.Println("Move right")
-		for _, coord := range g.currShape {
-			currCoord := *coord
-			currCoord[0] = currCoord[0] + 1 //move right
-		}
+		g.currShape.MoveRight()
 	} else if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		block.Rotate(g.currShape)
+		shape.Rotate(g.currShape)
 	}
 
 	//move block down
-	g.currShape.MoveDown(1.0)
+	g.currShape.MoveDown()
 
 	//check for collision
-	if Collision(g.currShape) {
+	if Collision(*g.currShape) {
 		if GameOver() {
 			g.gameOver = true
 			return nil
@@ -99,14 +96,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	//render grid
 	for i := 0; i < ROWS; i++ {
 		for j := 0; j < COLS; j++ {
-			text.Draw(screen, game_grid[i][j], new_font, windowWidth/2+i, windowHeight/2+j, color.RGBA{255, 255, 255, 255})
+			text.Draw(screen, game_grid[i][j], new_font, windowWidth/10+i, windowHeight/10+j+5, color.RGBA{255, 255, 255, 255})
 		}
 	}
-	//draw current shape
-	for _, coord := range g.currShape {
-		currCoord := *coord
-		text.Draw(screen, "[]", new_font, SPAWN_X+100, SPAWN_Y+currCoord[1]+100, color.RGBA{0xff, 0x00, 0x00, 0x00})
-	}
+
 	//draw score
 	currScore := fmt.Sprintf("Score: %d", g.user.score)
 	text.Draw(screen, currScore, new_font, 5, windowHeight-10, color.White)
@@ -138,7 +131,7 @@ func CreateGrid() [][]string {
 				grid[i][j] = "!>"
 			} else {
 				//draw empty space
-				grid[i][j] = " ."
+				grid[i][j] = "     .     "
 			}
 		}
 	}
@@ -152,15 +145,15 @@ func CreateGrid() [][]string {
 	return grid
 }
 
-// creates and load shapes from block.go
+// creates and load shapes from shape.go
 func LoadShapes(img *ebiten.Image, geoM *ebiten.GeoM) {
 
-	var IShape = block.Shape{block.CreateBlock(img, geoM, 0, 1), block.CreateBlock(img, geoM, 0, 2), block.CreateBlock(img, geoM, 0, 3), block.CreateBlock(img, geoM, 0, 4)} //I block
-	var TShape = block.Shape{block.CreateBlock(img, geoM, 0, 0), block.CreateBlock(img, geoM, 1, 0), block.CreateBlock(img, geoM, 1, 1), block.CreateBlock(img, geoM, 2, 0)} //T block
-	var BShape = block.Shape{block.CreateBlock(img, geoM, 0, 0), block.CreateBlock(img, geoM, 1, 0), block.CreateBlock(img, geoM, 0, 1), block.CreateBlock(img, geoM, 1, 1)} //Square block
-	var SShape = block.Shape{block.CreateBlock(img, geoM, 0, 0), block.CreateBlock(img, geoM, 1, 0), block.CreateBlock(img, geoM, 1, 1), block.CreateBlock(img, geoM, 2, 1)} //S block
+	var IShape = shape.Shape{shape.CreateBlock(img, geoM, 0, 1), shape.CreateBlock(img, geoM, 0, 2), shape.CreateBlock(img, geoM, 0, 3), shape.CreateBlock(img, geoM, 0, 4)} //I block
+	var TShape = shape.Shape{shape.CreateBlock(img, geoM, 0, 0), shape.CreateBlock(img, geoM, 1, 0), shape.CreateBlock(img, geoM, 1, 1), shape.CreateBlock(img, geoM, 2, 0)} //T block
+	var BShape = shape.Shape{shape.CreateBlock(img, geoM, 0, 0), shape.CreateBlock(img, geoM, 1, 0), shape.CreateBlock(img, geoM, 0, 1), shape.CreateBlock(img, geoM, 1, 1)} //Square block
+	var SShape = shape.Shape{shape.CreateBlock(img, geoM, 0, 0), shape.CreateBlock(img, geoM, 1, 0), shape.CreateBlock(img, geoM, 1, 1), shape.CreateBlock(img, geoM, 2, 1)} //S block
 
-	//load shapes defined in block.go
+	//load shapes defined in shape.go
 	shapes = append(shapes, IShape)
 	shapes = append(shapes, BShape)
 	shapes = append(shapes, SShape)
@@ -168,30 +161,27 @@ func LoadShapes(img *ebiten.Image, geoM *ebiten.GeoM) {
 }
 
 // create block randomly in 4 different ways:
-func SpawnShape(shapes []block.Block) *ebiten.Image {
+func SpawnShape(shapes []shape.Shape) *shape.Shape {
 	//block shift left with an XOR operation
 	//block shift down with an AND operation
-	block_index := 0
-	block_to_be_dropped := shapes[block_index]
-	for _, coord := range block_to_be_dropped {
-		currCoord := *coord
-		blockImage := ebiten.NewImage(currCoord[0], currCoord[1])
-	}
-	return blockImage
+	shape_index := 0 //randomize this
+	shape_to_be_dropped := shapes[shape_index]
+	return &shape_to_be_dropped
 }
 
 // modify function so that it accounts for checking rows only below it for collision
 // if next coordinates down hit a '[]', then collision is true
 // returns true if shape hits bottom or occupied space
-func Collision(currentShape block.Shape) bool {
+func Collision(currentShape shape.Shape) bool {
 	//check if shape hits bottom or occupied space
 
-	for _, coord := range currentShape {
+	for _, block := range currentShape {
 		//check if shape hits bottom or occupied space
-		currCoord := *coord
-		if game_grid[currCoord[0]][currCoord[1]+1] == "[]" || currCoord[1] == COLS-1 {
+
+		if block.Point_x == ROWS-1 || game_grid[block.Point_y+1][block.Point_y] == "[]" {
 			return true
 		}
+
 	}
 	return false
 }
@@ -249,7 +239,7 @@ func startGameLoop(g *Game) {
 	fmt.Println("Game starting for user...: ", user.userName)
 	time.Sleep(20)
 	//genearte blocks and grid
-	LoadShapes()
+	LoadShapes(&ebiten.Image{}, &ebiten.GeoM{})
 	game_grid = CreateGrid()
 }
 
