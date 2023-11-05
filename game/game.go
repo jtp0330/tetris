@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	ROWS         = 21
-	COLS         = 10
+	ROWS         = 10
+	COLS         = 21
+	SPACING      = 15
 	ROW_END      = 1
-	windowWidth  = 320
-	windowHeight = 240
+	windowWidth  = 640
+	windowHeight = 480
 
 	// block spawn point
 	SPAWN_X = ROWS / 2
@@ -96,7 +97,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	//render grid
 	for i := 0; i < ROWS; i++ {
 		for j := 0; j < COLS; j++ {
-			text.Draw(screen, game_grid[i][j], new_font, windowWidth/10+i, windowHeight/10+j+5, color.RGBA{255, 255, 255, 255})
+			text.Draw(screen, game_grid[i][j], new_font, windowWidth/4+(i*SPACING), windowHeight/4+(j*SPACING), color.RGBA{255, 255, 255, 255})
 		}
 	}
 
@@ -123,15 +124,15 @@ func CreateGrid() [][]string {
 		grid[i] = make([]string, COLS)
 		for j := 0; j < COLS; j++ {
 			//draw border
-			if j < ROW_END {
+			if i < ROW_END {
 				//first element
 				grid[i][j] = "<!"
-			} else if j >= COLS-ROW_END {
+			} else if i >= ROWS-ROW_END {
 				//last element
 				grid[i][j] = "!>"
 			} else {
 				//draw empty space
-				grid[i][j] = "     .     "
+				grid[i][j] = "."
 			}
 		}
 	}
